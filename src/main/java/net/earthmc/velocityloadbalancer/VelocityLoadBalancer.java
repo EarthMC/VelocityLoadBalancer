@@ -14,6 +14,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.earthmc.velocityloadbalancer.config.LoadBalancerConfig;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
@@ -114,7 +115,7 @@ public class VelocityLoadBalancer {
             return;
 
         // The player got kicked whilst attempting to connect to a load balanced server, attempt to redirect them to a new server.
-        findBestServer().ifPresent(server -> event.setResult(KickedFromServerEvent.RedirectPlayer.create(server)));
+        findBestServer(event.getServer().getServerInfo().getName()).ifPresent(server -> event.setResult(KickedFromServerEvent.RedirectPlayer.create(server)));
     }
 
     public void connect(RegisteredServer server) {
@@ -132,8 +133,13 @@ public class VelocityLoadBalancer {
     }
 
     public Optional<RegisteredServer> findBestServer() {
+        return findBestServer(null);
+    }
+
+    public Optional<RegisteredServer> findBestServer(@Nullable String exclude) {
         return this.serverDataMap.entrySet().stream()
                 .filter(entry -> entry.getValue().online)
+                .filter(entry -> !entry.getKey().equalsIgnoreCase(exclude))
                 .min(Comparator.comparingInt(entry -> entry.getValue().playerCount))
                 .flatMap(entry -> proxy.getServer(entry.getKey()));
     }
