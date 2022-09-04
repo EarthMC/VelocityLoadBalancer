@@ -65,12 +65,19 @@ public class VelocityLoadBalancer {
 
                 proxy.getServer(entry.getKey()).ifPresentOrElse(server -> {
                     server.ping()
-                        .completeOnTimeout(null, 3, TimeUnit.SECONDS)
-                        .thenAccept(ping -> {
-                            if (ping == null) {
+                        .completeOnTimeout(null, 5, TimeUnit.SECONDS)
+                        .whenComplete((ping, exception) -> {
+                            // The ping timed out or was completed exceptionally.
+                            if (ping == null || exception != null) {
+                                if (entry.getValue().online)
+                                    logger.info("Server '{}' marked as offline.", entry.getKey());
+
                                 entry.getValue().online = false;
                                 return;
                             }
+
+                            if (!entry.getValue().online)
+                                logger.info("Server '{}' marked as online.", entry.getKey());
 
                             entry.getValue().online = true;
                             ping.getPlayers().ifPresent(players -> entry.getValue().playerCount = players.getOnline());
